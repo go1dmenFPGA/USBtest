@@ -15,7 +15,7 @@ module romMemoryUsb(input useClk, checkData,
         if (checkData) begin
             case(Addr)
                 //Дескриптор уст-ва
-                6'd1: data <= lengthDesc; //Размер дескриптора    
+                6'd1: data <= 8'b0001_0010; //Размер дескриптора    
                 6'd2: data <= 8'b0000_0001; //Тип дескриптора
                 6'd3: data <= 8'b0001_0000; //Номер версии USB 0110h (100010000)
                 6'd4: data <= 8'b0000_0001;
@@ -34,7 +34,7 @@ module romMemoryUsb(input useClk, checkData,
                 6'd17: data <= 8'b0;           //Индекс дескриптора строки, содержащий серийный номер уст-ва
                 6'd18: data <= 8'b1000_0010;           //Количество возможных конфигураций устройства
                 //Дескриптор конфигурации
-                6'd19: data <= lengthDesc;
+                6'd19: data <= 8'b0000_1001;
                 6'd20: data <= 8'b0000_0010; //Тип дескриптора
                 6'd21: data <= 8'b0010_1000; //wTotalLength
                 6'd22: data <= 8'b0000_0000;
@@ -44,7 +44,7 @@ module romMemoryUsb(input useClk, checkData,
                 6'd26: data <= 8'b1010_0000; //bmAttributes
                 6'd27: data <= 8'b0010_0000; //bMaxPower
                 //Дескриптор интерфейса
-                6'd28: data <= lengthDesc;
+                6'd28: data <= 8'b0000_1001;
                 6'd29: data <= 8'b0000_0100; //Тип дескриптора
                 6'd30: data <= 8'b1111_1111; //bInterfaceNumber
                 6'd31: data <= 8'b1111_1111; //bAlternateSetting
@@ -54,7 +54,7 @@ module romMemoryUsb(input useClk, checkData,
                 6'd35: data <= 8'b0000_0010; //bInterfaceProtocol
                 6'd36: data <= 8'b1001_0011; //iInterface
                 //Дескриптор конечной точки 
-                6'd37: data <= lengthDesc;
+                6'd37: data <= 8'b0000_0111;
                 6'd38: data <= 8'b0000_0101; //Тип дескриптора
                 6'd39: data <= 8'b0101_0001; //bEndpointAddress
                 6'd40: data <= 8'b0000_0011; //bmAttributes
