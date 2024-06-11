@@ -38,29 +38,33 @@ module NRZIBLOCK(input useClk,
 
     always @(posedge useClk) begin
         if (checkData && OE_ACK && !callEopAck) begin
-            if (!readyAnswerAck && (counterUnitNrzi != 5)) begin
-                NRZI <= ~NRZI;
-                NRZI_not <= ~NRZI_not;
+            if (counterUnitNrzi != 5) begin
+                if (!readyAnswerAck) begin
+                    NRZI <= ~NRZI;
+                    NRZI_not <= ~NRZI_not;
+                end
+                else begin
+                    NRZI <= NRZI;
+                    NRZI_not <= NRZI_not;
+                end
             end
-            else if (readyAnswerAck && (counterUnitNrzi != 5)) begin
-                NRZI <= NRZI;
-                NRZI_not <= NRZI_not;
-            end
-            else if (counterUnitNrzi == 5) begin
+            else begin
                 NRZI <= 0;
                 NRZI_not <= 1;
             end
         end
         else if (checkData && OE_DESC && !callEopDesc) begin
-            if (!readyAnswerDesc && (counterUnitNrzi != 5)) begin
-                NRZI <= ~NRZI;
-                NRZI_not <= ~NRZI_not;
+            if (counterUnitNrzi != 5) begin
+                if (!readyAnswerDesc) begin
+                    NRZI <= ~NRZI;
+                    NRZI_not <= ~NRZI_not;
+                end
+                else begin
+                    NRZI <= NRZI;
+                    NRZI_not <= NRZI_not;
+                end
             end
-            else if (readyAnswerDesc && (counterUnitNrzi != 5)) begin
-                NRZI <= NRZI;
-                NRZI_not <= NRZI_not;
-            end
-            else if (counterUnitNrzi == 5) begin
+            else begin
                 NRZI <= 0;
                 NRZI_not <= 1;
             end
