@@ -11,17 +11,19 @@ module NRZIBLOCK(input useClk,
                  output reg NRZI = 0,
                  output reg NRZI_not = 1);
 
+    reg readyAnswerAckReg;
     reg readyAnswerDescReg;
     reg [2:0] counterUnitNrzi = 0;
     reg [2:0] eopCount = 0;
 
     always @(posedge useClk) begin
+        readyAnswerAckReg <= readyAnswerAck;
         readyAnswerDescReg <= readyAnswerDesc;
     end
 
     always @(posedge useClk) begin
         if (checkData && (OE_DESC || OE_ACK)) begin
-            if (readyAnswerDescReg && readyAnswerDesc) begin
+            if ((readyAnswerDescReg && readyAnswerDesc) || (readyAnswerAckReg && readyAnswerAck)) begin
                 if (counterUnitNrzi == 5)
                     counterUnitNrzi <= 0;
                 else 
@@ -75,7 +77,7 @@ module NRZIBLOCK(input useClk,
             else 
                 eopCount <= eopCount + 1;
         end
-        else if ((checkData && !OE_ACK) || (checkData && !OE_DESC))begin
+        else if ((checkData && !OE_ACK) || (checkData && !OE_DESC)) begin
             NRZI <= 0; 
             NRZI_not <= 1;
             eopCount <= 0;
