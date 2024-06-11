@@ -17,8 +17,10 @@ module NRZIBLOCK(input useClk,
     reg [2:0] eopCount = 0;
 
     always @(posedge useClk) begin
-        readyAnswerAckReg <= readyAnswerAck;
-        readyAnswerDescReg <= readyAnswerDesc;
+        if (checkData) begin 
+            readyAnswerAckReg <= readyAnswerAck;
+            readyAnswerDescReg <= readyAnswerDesc;
+        end
     end
 
     always @(posedge useClk) begin
