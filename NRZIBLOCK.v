@@ -88,7 +88,6 @@ module NRZIBLOCK(input useClk,
             NRZI_not <= 1;
             eopCount <= 0;
         end  
-
     end
 
 endmodule
