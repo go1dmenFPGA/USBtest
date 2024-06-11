@@ -41,6 +41,8 @@ module USB(input Clk,
 
     wire [15:0] crcResult;    
 
+    wire [2:0] counterUnitDesc;
+
     DataReception uut (.useClk(clk_120),
                        .serialData(serialData),
                        .NotserialData(NotserialData),
@@ -59,6 +61,7 @@ module USB(input Clk,
                      .answerDescEndPoint(answerDescEndPoint),
                      .readyAnswerAck(readyAnswerAck),
                      .readyAnswerDesc(readyAnswerDesc),
+                     .counterUnitDesc(counterUnitDesc),
                      .callEopAck(callEopAck),
                      .callEopDesc(callEopDesc),
                      .OE_ACK(OE_ACK),
@@ -70,6 +73,7 @@ module USB(input Clk,
                     .checkData(checkData),
                     .readyAnswerAck(readyAnswerAck),
                     .readyAnswerDesc(readyAnswerDesc),
+                    .counterUnitDesc(counterUnitDesc),
                     .OE_ACK(OE_ACK),
                     .OE_DESC(OE_DESC),
                     .callEopAck(callEopAck),

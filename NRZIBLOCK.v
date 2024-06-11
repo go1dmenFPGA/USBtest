@@ -8,66 +8,25 @@ module NRZIBLOCK(input useClk,
                  input OE_DESC,
                  input callEopAck,
                  input callEopDesc,
+                 input [2:0] counterUnitDesc,
                  output reg NRZI = 0,
                  output reg NRZI_not = 1);
 
-    reg readyAnswerAckReg;
-    reg readyAnswerDescReg;
-    reg [2:0] counterUnitNrzi = 0;
     reg [2:0] eopCount = 0;
-
-    // always @(posedge useClk) begin
-    //     if (checkData) begin 
-    //         readyAnswerAckReg <= readyAnswerAck;
-    //         readyAnswerDescReg <= readyAnswerDesc;
-    //     end
-    // end
-
-    // always @(posedge useClk) begin
-    //     if (checkData && (OE_DESC || OE_ACK)) begin
-    //         if ((readyAnswerDescReg && readyAnswerDesc) || (readyAnswerAckReg && readyAnswerAck)) begin
-    //             if (counterUnitNrzi == 4)
-    //                 counterUnitNrzi <= 0;
-    //             else 
-    //                 counterUnitNrzi <= counterUnitNrzi + 1;
-    //         end
-    //         else 
-    //             counterUnitNrzi <= 0;
-    //     end
-    // end
-    
-    always @(posedge useClk) begin
-        if (checkData && (OE_DESC || OE_ACK)) begin
-            if (readyAnswerDesc || readyAnswerAck) begin
-                if (counterUnitNrzi == 5)
-                    counterUnitNrzi <= 0;
-                else 
-                    counterUnitNrzi <= counterUnitNrzi + 1;
-            end
-            else 
-                counterUnitNrzi <= 0;
-        end
-    end
 
     always @(posedge useClk) begin
         if (checkData && OE_ACK && !callEopAck) begin
-            if (counterUnitNrzi != 5) begin
-                if (!readyAnswerAck) begin
-                    NRZI <= ~NRZI;
-                    NRZI_not <= ~NRZI_not;
-                end
-                else begin
-                    NRZI <= NRZI;
-                    NRZI_not <= NRZI_not;
-                end
-            end
-            else begin
+            if (!readyAnswerAck) begin
                 NRZI <= ~NRZI;
                 NRZI_not <= ~NRZI_not;
             end
+            else begin
+                NRZI <= NRZI;
+                NRZI_not <= NRZI_not;
+            end
         end
         else if (checkData && OE_DESC && !callEopDesc) begin
-            if (counterUnitNrzi != 5) begin
+            if (counterUnitDesc != 5) begin
                 if (!readyAnswerDesc) begin
                     NRZI <= ~NRZI;
                     NRZI_not <= ~NRZI_not;

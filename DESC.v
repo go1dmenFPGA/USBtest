@@ -11,7 +11,8 @@ module DESC (input useClk,
              output reg readyAnswerDesc,
              output reg OE_DESC = 0,
              output reg [15:0] crcResult,
-             output reg callEopDesc);
+             output reg callEopDesc,
+             output reg [2:0] counterUnitDesc);
 
     reg [5:0] Addr = 1;
     wire [7:0] OutRegisters;
@@ -59,6 +60,7 @@ module DESC (input useClk,
             callCrc <= 0;
             counterCrc <= 0;
             counterReset <= 0;
+            counterUnitDesc <= 0;
             if (answerDesc) begin
                 if ((prevPid == 3) && (Addr != 19))
                     Addr <= Addr;
@@ -103,7 +105,9 @@ module DESC (input useClk,
                                 counterMain <= counterMain + 1;
                 end   
                 ROM:    begin
-                            if (counterMain == 7) begin
+                            if (counterUnitDesc == 5)
+                                Addr <= Addr;
+                            else if (counterMain == 7) begin
                                 counterMain <= 0;
                                 if ((countAddr == 7) || (Addr == 19) || (Addr == 28) || (Addr == 37) || (Addr == 44)) begin
                                     Addr <= Addr;
@@ -167,6 +171,10 @@ module DESC (input useClk,
                             if (counterMain == 0) begin
                                 dataRegisters <= OutRegisters;
                             end
+                            else if (counterUnitDesc == 5) begin
+                                dataRegisters <= dataRegisters;
+                                readyAnswerDesc <= dataRegisters[0];
+                            end
                             else begin
                                 dataRegisters <= {1'b0, dataRegisters[7:1]};
                                 readyAnswerDesc <= dataRegisters[0];
@@ -194,6 +202,21 @@ module DESC (input useClk,
                             Register <= {1'b0, Register[15:1]};
                 end
             endcase
+        end
+    end
+
+    //Считаю 6 единиц
+    always @(posedge useClk) begin
+        if (checkData && OE_DESC) begin
+            if (readyAnswerDesc) begin
+                if (counterUnitDesc == 5) begin
+                    counterUnitDesc <= 0;
+                end
+                else 
+                    counterUnitDesc <= counterUnitDesc + 1;
+            end
+            else 
+                counterUnitDesc <= 0;
         end
     end
 

@@ -22,7 +22,9 @@ module AnalizePid(input useClk,
 
                   output reg answerDescConfig = 0,
                   output reg answerDescInterface = 0,
-                  output reg answerDescEndPoint
+                  output reg answerDescEndPoint,
+
+                  output [2:0] counterUnitDesc
                  );
 
     ACK firstAnswer (.useClk(useClk),
@@ -40,6 +42,7 @@ module AnalizePid(input useClk,
                        .answerDescEndPoint(answerDescEndPoint),
                        .lengthDesc(lengthDesc),
                        .readyAnswerDesc(readyAnswerDesc),
+                       .counterUnitDesc(counterUnitDesc),
                        .OE_DESC(OE_DESC),
                        .crcResult(crcResult),
                        .callEopDesc(callEopDesc),
