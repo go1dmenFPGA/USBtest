@@ -180,21 +180,9 @@ module DESC (input useClk,
                                 readyAnswerDesc <= dataRegisters[0];
                             end
 
-                            Register[0] <= xorValue ^ Delitel[0];
+        /*crc part*/        Register[0] <= xorValue ^ Delitel[0];
                             Register[1] <= xorValue ^ Register[0];
-                            Register[2] <= Register[1];
-                            Register[3] <= Register[2];  
-                            Register[4] <= Register[3];
-                            Register[5] <= Register[4];
-                            Register[6] <= Register[5];
-                            Register[7] <= Register[6];
-                            Register[8] <= Register[7];
-                            Register[9] <= Register[8];
-                            Register[10] <= Register[9];
-                            Register[11] <= Register[10];  
-                            Register[12] <= Register[11];
-                            Register[13] <= Register[12];
-                            Register[14] <= Register[13];
+                            Register[14:2] <= Register[13:1];
                             Register[15] <= xorValue ^ Register[14];  
                 end
                 CRC:    begin   
