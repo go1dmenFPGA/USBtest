@@ -5,18 +5,23 @@ module DESC (input useClk,
              input answerDescConfig,
              input answerDescInterface,
              input answerDescEndPoint,
+             input answerDescChar,
+             input answerNull,
+             input [7:0] bRequestSetConfig,
+             input [2:0] Driver,
              input checkData,
+             input [4:0] setupPidReset,
              input [7:0] lengthDesc,
-             input [4:0] prevPid,
              output reg readyAnswerDesc,
              output reg OE_DESC = 0,
-             output reg [15:0] crcResult,
              output reg callEopDesc,
-             output reg [2:0] counterUnitDesc);
+             output reg [2:0] counterUnitDesc,
+             output Debug 
+             );
 
-    reg [5:0] Addr = 1;
+    (* dont_touch = "true" *) reg [5:0] Addr = 1;
     wire [7:0] OutRegisters;
-    reg [7:0] dataRegisters;
+    (* dont_touch = "true" *) reg [7:0] dataRegisters;
 
     reg [2:0] State;
 
@@ -27,12 +32,15 @@ module DESC (input useClk,
     reg callCrcReg;
     reg callCrc;
 
+    reg [15:0] RegisterCrc;
+
+    assign Debug = (Addr == 17) ? 1'b1 : 1'b0;
+
     localparam SYNC = 0, PID = 1, ROM = 2, CRC = 3, EMPTY = 4;
 
     romMemoryUsb myMemory (.useClk(useClk),
                            .Addr(Addr),
                            .checkData(checkData),
-                           .lengthDesc(lengthDesc),
                            .OutRegisters(OutRegisters));
 
     reg [3:0] counterMain;
@@ -40,12 +48,14 @@ module DESC (input useClk,
     reg [15:0] Delitel;
     reg [15:0] Register;
 
-    wire xorValue = Register[15] ^ readyAnswerDesc;
+    wire xorValue = Register[0] ^ dataRegisters[0];
     reg [3:0] counterCrc;
     reg [2:0] counterReset;
 
+    reg crutchReg = 1;
+
     always @(posedge useClk) begin
-        if (checkData && (answerDesc || answerDescConfig || answerDescInterface || answerDescEndPoint)) begin
+        if (checkData && (answerDesc || answerDescConfig || answerDescInterface || answerDescEndPoint || answerDescChar || answerNull)) begin
             readyAnswerDesc <= 0;
             OE_DESC <= 1;
             State <= SYNC;
@@ -54,7 +64,7 @@ module DESC (input useClk,
             counterMain <= 0;
             changePid <= ~changePid;
             countAddr <= 0;
-            Delitel <= 16'b1000_0000_0000_0101; //x^16 + x^15 + x^2 + 1
+            Delitel <= 16'b1100_0000_0000_0101; //x^16 + x^15 + x^2 + 1
             Register <= 16'hFFFF;
             callCrcReg <= 0;
             callCrc <= 0;
@@ -62,30 +72,38 @@ module DESC (input useClk,
             counterReset <= 0;
             counterUnitDesc <= 0;
             if (answerDesc) begin
-                if ((prevPid == 3) && (Addr != 19))
+                if ((0 < Addr) && (Addr < 19))
                     Addr <= Addr;
                 else 
                     Addr <= 1;  
             end
             else if (answerDescConfig) begin
-                if ((prevPid == 3) && (19 < Addr) && (Addr < 28))
-                    Addr <= Addr;
-                else 
-                    Addr <= 19;
+                if (Driver == 1) begin
+                    if ((19 < Addr) && (Addr < 52))
+                        Addr <= Addr;   
+                    else 
+                        Addr <= 19;
+                end
+                else if (Driver == 1) begin
+                    if ((19 < Addr) && (Addr < 28))
+                        Addr <= Addr;
+                    else 
+                        Addr <= 19;
+                end
+                else if (Driver == 2) begin
+                    if (crutchReg) begin
+                        Addr <= 19;
+                        crutchReg <= 0;
+                    end
+                    else begin
+                        if ((19 < Addr) && (Addr < 52))
+                            Addr <= Addr;   
+                        else 
+                            Addr <= 19;
+                    end
+                end
             end
-            else if (answerDescInterface) begin
-                if ((prevPid == 3) && (28 < Addr) && (Addr < 37))
-                    Addr <= Addr;
-                else 
-                    Addr <= 28;
-            end
-            else if (answerDescEndPoint) begin
-                if ((prevPid == 3) && (37 < Addr) && (Addr < 44))
-                    Addr <= Addr;
-                else 
-                    Addr <= 37;
-            end
-        end  
+        end 
         else if (OE_DESC && checkData) begin    
             case(State)  
                 SYNC:   begin
@@ -97,51 +115,84 @@ module DESC (input useClk,
                                 counterMain <= counterMain + 1;                    
                 end 
                 PID:    begin
-                            if (counterMain == 6) begin
-                                State <= ROM;
-                                counterMain <= 0;
-                            end
-                            else 
-                                counterMain <= counterMain + 1;
-                end   
-                ROM:    begin
-                            if (counterUnitDesc == 5)
-                                Addr <= Addr;
-                            else if (counterMain == 7) begin
-                                counterMain <= 0;
-                                if ((countAddr == 7) || (Addr == 19) || (Addr == 28) || (Addr == 37) || (Addr == 44)) begin
-                                    Addr <= Addr;
-                                    counterMain <= counterMain;
-                                    callCrcReg <= 1;
+                            if ((Addr != 51) && (bRequestSetConfig != 8'h09)) begin
+                                if (counterMain == 7) begin
+                                    State <= ROM;
+                                    counterMain <= 1;
                                 end
                                 else 
-                                    countAddr <= countAddr + 1;
+                                    counterMain <= counterMain + 1;
                             end
-                            else if (counterMain == 6) begin
-                                Addr <= Addr + 1;
-                                counterMain <= counterMain + 1;
+                            else begin
+                                if (counterMain == 8) begin
+                                    State <= CRC;
+                                    crutchReg <= 1;
+                                end
+                                else 
+                                    counterMain <= counterMain + 1;
                             end
-                            else 
-                                counterMain <= counterMain + 1;
+                end   
+                ROM:    begin
+                            if (counterUnitDesc == 5) begin
+                                counterMain <= counterMain;
+                                callCrcReg <= 0;
+                            end
+                            else begin
+                                if (counterMain == 7) begin
+                                    counterMain <= 0;
+                                    if ((Driver == 0) || (Driver == 2)) begin
+                                        if ((countAddr == 7) || (Addr == 19) || (Addr == 51) || (Addr == 52)) begin 
+                                            Addr <= Addr;
+                                            counterMain <= counterMain;
+                                            callCrcReg <= 1;
+                                        end
+                                        else 
+                                            countAddr <= countAddr + 1;
+                                    end
+                                    else if (Driver == 1) begin
+                                        if ((countAddr == 7) || (Addr == 19) || (Addr == 28)) begin
+                                            Addr <= Addr;
+                                            counterMain <= counterMain;
+                                            callCrcReg <= 1;
+                                        end
+                                        else 
+                                            countAddr <= countAddr + 1;
+                                    end
+                                end
+                                else if (counterMain == 6) begin
+                                    Addr <= Addr + 1;
+                                    counterMain <= counterMain + 1;
+                                end
+                                else 
+                                    counterMain <= counterMain + 1;
 
-                            if (callCrcReg) 
-                                callCrc <= 1;
-                            else 
-                                callCrc <= 0;
-                            
-                            if (callCrc)
-                                State <= CRC;
-                            else 
-                                State <= State;
+                                if (callCrcReg) begin
+                                    callCrc <= 1;
+                                end
+                                else 
+                                    callCrc <= 0;
+                                
+                                if (callCrc) begin
+                                    State <= CRC;
+                                    RegisterCrc <= ~Register;
+                                end
+                                else 
+                                    State <= State;
+                            end
                 end
                 CRC:    begin   
-                            if (counterCrc == 15) begin
-                                State <= EMPTY;
-                                counterCrc <= 0;
-                                callEopDesc <= 1;
+                            if (counterUnitDesc == 5) begin
+                                counterCrc <= counterCrc;                  
                             end
-                            else 
-                                counterCrc <= counterCrc + 1;
+                            else begin
+                                if (counterCrc == 15) begin
+                                    State <= EMPTY;
+                                    counterCrc <= 0;
+                                    callEopDesc <= 1;
+                                end
+                                else 
+                                    counterCrc <= counterCrc + 1;
+                            end
                 end
                 EMPTY:  begin
                             if (counterReset == 3)
@@ -158,9 +209,9 @@ module DESC (input useClk,
                             dataRegisters <= OutRegisters;
                             if (counterMain == 5) begin
                                 if (!changePid)
-                                    SyncPid <= 8'b1100_0011;
+                                    SyncPid <= 8'b0100_1011;
                                 else 
-                                    SyncPid <= 8'b1101_0010;
+                                    SyncPid <= 8'b1100_0011;
                             end
                 end
                 PID:    begin
@@ -168,47 +219,118 @@ module DESC (input useClk,
                             readyAnswerDesc <= SyncPid[0];
                 end
                 ROM:    begin
-                            if (counterMain == 0) begin
-                                dataRegisters <= OutRegisters;
-                            end
-                            else if (counterUnitDesc == 5) begin
-                                dataRegisters <= dataRegisters;
-                                readyAnswerDesc <= dataRegisters[0];
+                            if (readyAnswerDesc) begin
+                                if (counterUnitDesc == 5) begin
+                                    counterUnitDesc <= 7;
+                                    readyAnswerDesc <= 0;
+                                    dataRegisters <= dataRegisters;
+                                end
+                                else begin
+                                    counterUnitDesc <= counterUnitDesc + 1;
+                                    if (counterMain == 0) begin
+                                    dataRegisters <= OutRegisters;
+                                    readyAnswerDesc <= dataRegisters[0];
+                                    end
+                                    else if (callCrc) begin
+                                        readyAnswerDesc <= crcDebug[0];
+                                    end   
+                                    else begin
+                                        dataRegisters <= {1'b0, dataRegisters[7:1]};
+                                        readyAnswerDesc <= dataRegisters[0];
+                                    end
+
+                                    Register[15] <= xorValue;
+                                    Register[14] <= Register[15];
+                                    Register[13] <= Register[14] ^ xorValue;
+                                    Register[12] <= Register[13];
+                                    Register[11] <= Register[12];
+                                    Register[10] <= Register[11];
+                                    Register[9] <= Register[10];
+                                    Register[8] <= Register[9];
+                                    Register[7] <= Register[8];
+                                    Register[6] <= Register[7];
+                                    Register[5] <= Register[6];
+                                    Register[4] <= Register[5];
+                                    Register[3] <= Register[4];
+                                    Register[2] <= Register[3];
+                                    Register[1] <= Register[2];
+                                    Register[0] <= Register[1] ^ xorValue;
+                                end
                             end
                             else begin
-                                dataRegisters <= {1'b0, dataRegisters[7:1]};
-                                readyAnswerDesc <= dataRegisters[0];
-                            end
+                                counterUnitDesc <= 0;
+                                if (counterMain == 0) begin
+                                    dataRegisters <= OutRegisters;
+                                    readyAnswerDesc <= dataRegisters[0];
+                                end
+                                else if (callCrc) begin
+                                    readyAnswerDesc <= crcDebug[0];
+                                end   
+                                else begin
+                                    dataRegisters <= {1'b0, dataRegisters[7:1]};
+                                    readyAnswerDesc <= dataRegisters[0];
+                                end
 
-        /*crc part*/        Register[0] <= xorValue ^ Delitel[0];
-                            Register[1] <= xorValue ^ Register[0];
-                            Register[14:2] <= Register[13:1];
-                            Register[15] <= xorValue ^ Register[14];  
+                                Register[15] <= xorValue;
+                                Register[14] <= Register[15];
+                                Register[13] <= Register[14] ^ xorValue;
+                                Register[12] <= Register[13];
+                                Register[11] <= Register[12];
+                                Register[10] <= Register[11];
+                                Register[9] <= Register[10];
+                                Register[8] <= Register[9];
+                                Register[7] <= Register[8];
+                                Register[6] <= Register[7];
+                                Register[5] <= Register[6];
+                                Register[4] <= Register[5];
+                                Register[3] <= Register[4];
+                                Register[2] <= Register[3];
+                                Register[1] <= Register[2];
+                                Register[0] <= Register[1] ^ xorValue;       
+                            end   
                 end
                 CRC:    begin   
-                            readyAnswerDesc <= Register[0];
-                            Register <= {1'b0, Register[15:1]};
+                            if (readyAnswerDesc) begin
+                                if (counterUnitDesc == 5) begin
+                                    counterUnitDesc <= 7;
+                                    readyAnswerDesc <= 0;
+                                    RegisterCrc <= RegisterCrc;
+                                end
+                                else begin
+                                    counterUnitDesc <= counterUnitDesc + 1;
+                                    RegisterCrc <= {1'b0, RegisterCrc[15:1]};
+                                    readyAnswerDesc <= RegisterCrc[1];
+                                end
+                            end
+                            else begin
+                                RegisterCrc <= {1'b0, RegisterCrc[15:1]};
+                                readyAnswerDesc <= RegisterCrc[1];
+                                counterUnitDesc <= 0;
+                            end
                 end
             endcase
         end
-    end
-
-    //Считаю 6 единиц
-    always @(posedge useClk) begin
-        if (checkData && OE_DESC) begin
-            if (readyAnswerDesc) begin
-                if (counterUnitDesc == 5) begin
-                    counterUnitDesc <= 0;
-                end
-                else 
-                    counterUnitDesc <= counterUnitDesc + 1;
-            end
+        else if (checkData && (setupPidReset == 3)) begin
+            changePid <= 1;
+            if (lengthDesc == 8'd64)
+                Addr <= 1;
             else 
-                counterUnitDesc <= 0;
+                Addr <= Addr;
         end
     end
 
+    wire [15:0] crcDebug = ~Register[15:0];
+
 endmodule
+
+
+
+
+
+
+
+
+
 
 
 

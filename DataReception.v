@@ -3,8 +3,10 @@
 module DataReception   (input useClk,
                         inout serialData,       //Данные, закодированные NRZI
                         inout NotserialData,
+                        input OE_TRANSMIT,
                         output reg checkData = 0,
                         output reg [7:0] parallelData = 0,
+                        output bitStaff,
                         output reg detectEop = 1);
 
     reg serialData_reg = 1;
@@ -31,39 +33,76 @@ module DataReception   (input useClk,
         end
     end
 
-    reg decoderData = 0;
+    (* dont_touch = "true" *) reg decoderData = 0;
     reg lastData = 0;
-    reg [3:0] counterUnit = 0;
+    (* dont_touch = "true" *) reg [3:0] counterUnitDebug = 0;
+
+    reg debugStaff = 0;
 
     always @(posedge useClk) begin
         lastData <= readyData;
     end
+    
+    (* dont_touch = "true" *) reg staffReg = 1;
+
+    assign bitStaff = staffReg;
+
+    //(* dont_touch = "true" *) reg staffRegDouble = 1;
+
+    // always @(posedge useClk) begin
+    //     if (checkData) begin
+    //         staffRegDouble <= staffReg;
+    //     end
+    // end
+
+    (* dont_touch = "true" *) reg pozor = 0;
 
     always @(posedge useClk) begin
-        if (checkData) begin   
-            if (readyData != lastData) begin
-                decoderData <= 0;
-                counterUnit <= 0;
-                if (counterUnit == 7) 
-                    parallelData <= parallelData;
-                else 
-                    parallelData <= {decoderData, parallelData[7:1]}; 
-            end
-            else begin
-                decoderData <= 1;
-                counterUnit <= counterUnit + 1;
-                if (counterUnit == 6) begin
+        if (checkData) begin  
+                if (readyData != lastData) begin
                     decoderData <= 0;
-                    parallelData <= {decoderData, parallelData[7:1]};
+                    counterUnitDebug <= 0;
+                    if (counterUnitDebug == 7) begin
+                        parallelData <= parallelData;
+                    end
+                    else begin
+                        parallelData <= {decoderData, parallelData[7:1]}; 
+                    end
                 end
-                else if (counterUnit == 7) begin
-                    parallelData <= parallelData;
-                    counterUnit <= 0;
+                else begin
+                    decoderData <= 1;
+                    counterUnitDebug <= counterUnitDebug + 1;
+                    if (counterUnitDebug == 6) begin
+                        decoderData <= 0;
+                        parallelData <= {decoderData, parallelData[7:1]};
+                    end
+                    else if (counterUnitDebug == 7)begin
+                        parallelData <= parallelData;
+                        counterUnitDebug <= 1;
+                    end
+                    else begin
+                        parallelData <= {decoderData, parallelData[7:1]};
+                    end
                 end
-                else 
-                    parallelData <= {decoderData, parallelData[7:1]};
+
+                if (OE_TRANSMIT) begin
+                    if (counterUnitDebug == 6)
+                        pozor <= 1;
+                    else 
+                        pozor <= 0;
+
+                    if (pozor) begin
+                        staffReg <= 0;
+                        parallelData <= parallelData;
+                    end
+                    else 
+                        staffReg <= 1;
+                end
+                else begin
+                    staffReg <= 1;
+                    pozor <= 0;
+                end
             end
-        end
     end
 
     //----Поиск EOP----

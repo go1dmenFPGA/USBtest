@@ -7,7 +7,7 @@ module ACK(input useClk,
            output reg OE_ACK = 0,
            output reg callEopAck = 0);
 
-    reg [5:0] counterAnswerAck = 0;
+    (* dont_touch = "true" *) reg [5:0] counterAnswerAck = 0;
 
     always @(posedge useClk) begin
         if (checkData && answerACK) 
